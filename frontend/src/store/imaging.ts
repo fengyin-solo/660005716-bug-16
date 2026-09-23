@@ -19,6 +19,7 @@ export const useImagingStore = defineStore('imaging', () => {
         preset: preset.value, width: 64, height: 64, depth: 64
       })
       volumeData.value = data
+      roiResults.value = []
       mprSlice.value = { axial: 32, coronal: 32, sagittal: 32 }
     } finally { loading.value = false }
   }
