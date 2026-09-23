@@ -1,8 +1,12 @@
-import random, math
+import math
 import numpy as np
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+# 固定种子 + 每次生成独立 RNG：同一份输入(preset/尺寸)必须逐字节一致，
+# 且不依赖全局随机状态（FastAPI 线程池并发时各请求互不干扰）。
+VOLUME_SEED = 42
 
 app = FastAPI(title="Medical Imaging Viewer")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -37,8 +41,8 @@ WINDOW_PRESETS = {
 
 
 def generate_volume(preset: str, w: int, h: int, d: int):
-    """Generate synthetic CT-like volume"""
-    np.random.seed(42)
+    """Generate synthetic CT-like volume (deterministic for identical inputs)"""
+    rng = np.random.RandomState(VOLUME_SEED)
     vol = np.zeros((d, h, w), dtype=np.float32)
 
     center_x, center_y, center_z = w//2, h//2, d//2
@@ -63,7 +67,7 @@ def generate_volume(preset: str, w: int, h: int, d: int):
                             base = 10 + noise * 0.3
                         # Skull
                         if dist > 0.7 and dist < 0.85:
-                            base = 200 + random.uniform(-20, 20)
+                            base = 200 + rng.uniform(-20, 20)
                         vol[z, y, x] = base + noise
                     elif dist < 0.9:
                         vol[z, y, x] = 100  # Scalp
@@ -79,11 +83,11 @@ def generate_volume(preset: str, w: int, h: int, d: int):
                         if lung_dist1 < 0.7 or lung_dist2 < 0.7:
                             vol[z, y, x] = -650 + np.sin(z*0.3)*30
                         else:
-                            vol[z, y, x] = 30 + np.random.uniform(-5, 5)
+                            vol[z, y, x] = 30 + rng.uniform(-5, 5)
                         # Spine
                         if abs(x - center_x) < 3 and abs(y - center_y + 8) < 4:
                             vol[z, y, x] = 250
-                    vol[z, y, x] += np.random.uniform(-3, 3)
+                    vol[z, y, x] += rng.uniform(-3, 3)
                 elif preset == "abdomen":
                     bx = (x - center_x) / (w * 0.33)
                     by = (y - center_y) / (h * 0.4)
@@ -93,7 +97,7 @@ def generate_volume(preset: str, w: int, h: int, d: int):
                         # Liver (right upper)
                         lv = math.sqrt(((x-center_x-6)/(w*0.08))**2 + ((y-center_y+4)/(h*0.07))**2)
                         if lv < 0.6:
-                            base = 55 + np.random.uniform(-5, 5)
+                            base = 55 + rng.uniform(-5, 5)
                         # Kidneys
                         kd1 = math.sqrt(((x-center_x-5)/(w*0.04))**2 + ((y-center_y-5)/(h*0.04))**2)
                         kd2 = math.sqrt(((x-center_x+5)/(w*0.04))**2 + ((y-center_y-5)/(h*0.04))**2)
@@ -101,8 +105,8 @@ def generate_volume(preset: str, w: int, h: int, d: int):
                             base = 45
                         # Spine
                         if abs(x - center_x) < 3 and abs(y - center_y + 7) < 4:
-                            base = 250 + np.random.uniform(-10, 10)
-                        vol[z, y, x] = base + np.random.uniform(-9, 9)
+                            base = 250 + rng.uniform(-10, 10)
+                        vol[z, y, x] = base + rng.uniform(-9, 9)
 
     return vol.tolist()
 

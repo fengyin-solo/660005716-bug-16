@@ -16,7 +16,7 @@
     <el-button type="success" size="small" @click="analyze" :loading="store.loading" :disabled="!rois.length" style="margin-top:8px">📊 分析ROI</el-button>
 
     <div v-if="store.roiResults.length" class="results">
-      <div v-for="r in store.roiResults" :key="r.label" class="roi-result">
+      <div v-for="(r, i) in store.roiResults" :key="i" class="roi-result">
         <div class="r-label">{{ r.label }}</div>
         <div class="r-stats">
           <div class="stat"><span>均值</span><b>{{ r.mean }}</b> HU</div>
